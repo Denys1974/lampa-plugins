@@ -455,79 +455,62 @@
       var oncomplite = arguments.length > 1 ? arguments[1] : undefined;
       var onerror = arguments.length > 2 ? arguments[2] : undefined;
       var parts_limit = 5;
-      var parts_data = [function (call) {
-        getList('api/v2.2/films/collections?type=TOP_POPULAR_MOVIES', params, function (json) {
-          json.title = 'Сейчас смотрят фильмы';
-          call(json);
-        }, call);
-      }, function (call) {
-        getList('api/v2.2/films/collections?type=POPULAR_SERIES', params, function (json) {
-          json.title = 'Сейчас смотрят сериалы';
-          call(json);
-        }, call);
-      }, function (call) {
-        getList('api/v2.2/films/collections?type=TOP_250_MOVIES', params, function (json) {
-          json.title = 'Топ фильмы';
-          call(json);
-        }, call);
-      }, function (call) {
-        getList('api/v2.2/films/collections?type=TOP_250_TV_SHOWS', params, function (json) {
-          json.title = 'Топ сериалы';
-          call(json);
-        }, call);
-      }, function (call) {
-        getList('api/v2.2/films?order=NUM_VOTE&type=FILM', params, function (json) {
-          json.title = 'Популярные фильмы';
-          call(json);
-        }, call);
-      }, function (call) {
-        getList('api/v2.2/films?order=NUM_VOTE&type=TV_SERIES', params, function (json) {
-          json.title = 'Популярные сериалы';
-          call(json);
-        }, call);
-      }, function (call) {
-        getList('api/v2.2/films?order=NUM_VOTE&type=MINI_SERIES', params, function (json) {
-          json.title = 'Популярные мини-сериалы';
-          call(json);
-        }, call);
-      }, function (call) {
-        getList('api/v2.2/films?order=NUM_VOTE&type=TV_SHOW', params, function (json) {
-          json.title = 'Популярные телешоу';
-          call(json);
-        }, call);
-      }];
+      var parts_data = [];
+
+      // Подборка по запросу Кинопоиска с заголовком
+      function part(title, url) {
+        return function (call) {
+          list({url: url, page: params.page}, function (json) {
+            json.title = title;
+            call(json);
+          }, call);
+        };
+      }
+
+      menu({}, function () {
+        var now = new Date();
+        // Новинка — с прошлого года
+        var fresh = '&yearFrom=' + (now.getFullYear() - 1);
+        var rus = countries_map['Россия'];
+        var foreign = [countries_map['США'], countries_map['Великобритания']].filter(Boolean).join(',');
+        var months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+        // Продолжить просмотр: начатые фильмы и сериалы
+        var books = Lampa.Favorite.continues('movie').concat(Lampa.Favorite.continues('tv')).filter(function (elem) {
+          if (!elem.source) elem.source = 'tmdb';
+          return [SOURCE_NAME, 'tmdb', 'cub'].indexOf(elem.source) !== -1;
+        });
+
+        if (books.length) parts_data.push(function (call) {
+          call({
+            results: books.slice(0, 20),
+            title: 'Продолжить просмотр'
+          });
+        });
+
+        if (rus) {
+          parts_data.push(part('🇷🇺 Новые российские фильмы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=FILM' + fresh));
+          parts_data.push(part('🇷🇺 Новые российские сериалы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=TV_SERIES' + fresh));
+          parts_data.push(part('🇷🇺 Новые российские мини-сериалы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=MINI_SERIES' + fresh));
+        }
+
+        if (foreign) {
+          parts_data.push(part('🌍 Новые зарубежные фильмы', 'kpru_foreign:FILM:' + foreign));
+          parts_data.push(part('🌍 Новые зарубежные сериалы', 'kpru_foreign:TV_SERIES:' + foreign));
+        }
+
+        parts_data.push(part('🎬 Премьеры этого месяца', 'api/v2.2/films/premieres?year=' + now.getFullYear() + '&month=' + months[now.getMonth()]));
+        parts_data.push(part('🔥 Сейчас смотрят фильмы', 'api/v2.2/films/collections?type=TOP_POPULAR_MOVIES'));
+        parts_data.push(part('🔥 Сейчас смотрят сериалы', 'api/v2.2/films/collections?type=POPULAR_SERIES'));
+        parts_data.push(part('⭐ Лучшие за год (рейтинг 7+)', 'api/v2.2/films?order=NUM_VOTE&ratingFrom=7' + fresh));
+        parts_data.push(part('Топ фильмы', 'api/v2.2/films/collections?type=TOP_250_MOVIES'));
+        parts_data.push(part('Топ сериалы', 'api/v2.2/films/collections?type=TOP_250_TV_SHOWS'));
+        loadPart(oncomplite, onerror);
+      });
 
       function loadPart(partLoaded, partEmpty) {
         Lampa.Api.partNext(parts_data, parts_limit, partLoaded, partEmpty);
       }
 
-      menu({}, function () {
-        var rus_id = countries_map['Россия'];
-        var ru_year = '&yearFrom=' + (new Date().getFullYear() - 1);
-
-        if (rus_id) {
-          parts_data.splice(0, 0, function (call) {
-            getList('api/v2.2/films?order=NUM_VOTE&countries=' + rus_id + '&type=FILM' + ru_year, params, function (json) {
-              json.title = 'Новые российские фильмы';
-              call(json);
-            }, call);
-          });
-          parts_data.splice(1, 0, function (call) {
-            getList('api/v2.2/films?order=NUM_VOTE&countries=' + rus_id + '&type=TV_SERIES' + ru_year, params, function (json) {
-              json.title = 'Новые российские сериалы';
-              call(json);
-            }, call);
-          });
-          parts_data.splice(2, 0, function (call) {
-            getList('api/v2.2/films?order=NUM_VOTE&countries=' + rus_id + '&type=MINI_SERIES' + ru_year, params, function (json) {
-              json.title = 'Новые российские мини-сериалы';
-              call(json);
-            }, call);
-          });
-        }
-
-        loadPart(oncomplite, onerror);
-      });
       return loadPart;
     }
 
@@ -672,7 +655,55 @@
         method = params.filter_url;
       }
 
+      if (typeof method === 'string' && startsWith(method, 'kpru_foreign:')) {
+        foreignList(method, params, oncomplite, onerror);
+        return;
+      }
+
       getList(method, params, oncomplite, onerror);
+    }
+
+    // Новинки нескольких стран (kpru_foreign:ТИП:id,id) — по популярности, страны вперемешку
+    function foreignList(method, params, oncomplite, onerror) {
+      var parts = method.split(':');
+      var ids = parts[2].split(',');
+      var lists = [];
+      var left = ids.length;
+      ids.forEach(function (id, i) {
+        getList('api/v2.2/films?order=NUM_VOTE&countries=' + id + '&type=' + parts[1] + '&yearFrom=' + (new Date().getFullYear() - 1), params, function (json) {
+          lists[i] = json;
+          if (--left === 0) done();
+        }, function () {
+          if (--left === 0) done();
+        });
+      });
+
+      function done() {
+        var ok = lists.filter(Boolean);
+        if (!ok.length) return onerror && onerror();
+        var seen = {};
+        var results = [];
+        for (var n = 0; n < 20; n++) {
+          ok.forEach(function (l) {
+            var e = l.results[n];
+            if (e && !seen[e.id]) {
+              seen[e.id] = true;
+              results.push(e);
+            }
+          });
+        }
+        var pages = Math.max.apply(null, ok.map(function (l) {
+          return l.total_pages;
+        }));
+        oncomplite({
+          results: results,
+          url: method,
+          page: params.page || 1,
+          total_pages: pages,
+          total_results: 0,
+          more: pages > (params.page || 1)
+        });
+      }
     }
 
     function search$1() {
