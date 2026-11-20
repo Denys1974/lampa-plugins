@@ -472,7 +472,7 @@
         // Новинка — с прошлого года
         var fresh = '&yearFrom=' + (now.getFullYear() - 1);
         var rus = countries_map['Россия'];
-        var foreign = [countries_map['США'], countries_map['Великобритания']].filter(Boolean).join(',');
+        var foreign = [countries_map['США'], countries_map['Великобритания'], countries_map['Корея Южная'], countries_map['Франция']].filter(Boolean).join(',');
         var months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
         // Продолжить просмотр: начатые фильмы и сериалы
         var books = Lampa.Favorite.continues('movie').concat(Lampa.Favorite.continues('tv')).filter(function (elem) {
