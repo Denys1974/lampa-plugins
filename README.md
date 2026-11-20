@@ -15,6 +15,7 @@
 - Trailers — https://plugin.rootu.top/trailers.js — трейлеры iTunes
 - TV status color — https://levende.github.io/lampa-plugins/tv-status-color.js — цветной статус сериала
 - No Shots — https://and7ey.github.io/lampa/noshots.js — убирает «Shots»
+- Etor — https://nb557.github.io/plugins/etor.js — включает торренты на ТВ (нужен TorrServer: дополнение HA aatrubilin/hassio-torrserver, порт 8090)
 
 Отбор (2026-11-20, каталог lampaguide.com): только https (Лампа по https не грузит http), только читаемый код
 (плагины bylampa запутаны — не взяты), без торрентов (нужен TorrServer). Если плагин уже стоит отдельно — повторно не грузится.

@@ -1340,7 +1340,8 @@
       'https://nb557.github.io/plugins/rating.js', // рейтинги Кинопоиска и IMDb
       'https://plugin.rootu.top/trailers.js', // трейлеры iTunes
       'https://levende.github.io/lampa-plugins/tv-status-color.js', // цветной статус сериала
-      'https://and7ey.github.io/lampa/noshots.js' // без «Shots»
+      'https://and7ey.github.io/lampa/noshots.js', // без «Shots»
+      'https://nb557.github.io/plugins/etor.js' // торренты на ТВ Samsung/LG (TorrServer)
     ];
 
     function loadBundle() {
