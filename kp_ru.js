@@ -1334,4 +1334,35 @@
 
     if (!window.kp_source_plugin) startPlugin();
 
+    // Сборка: вместе с каталогом подгружаем проверенные плагины с сайтов их авторов (обновляются сами)
+    var BUNDLE = [
+      'https://nb557.github.io/plugins/online_mod.js', // источники видео (Rezka и др.)
+      'https://nb557.github.io/plugins/rating.js', // рейтинги Кинопоиска и IMDb
+      'https://plugin.rootu.top/trailers.js', // трейлеры iTunes
+      'https://levende.github.io/lampa-plugins/tv-status-color.js', // цветной статус сериала
+      'https://and7ey.github.io/lampa/noshots.js' // без «Shots»
+    ];
+
+    function loadBundle() {
+      if (window.kp_ru_bundle) return;
+      window.kp_ru_bundle = true;
+      // Плагин уже стоит отдельно в «Расширениях» — второй раз не грузим
+      var plugins = Lampa.Storage.get('plugins', '[]');
+      var installed = (Array.isArray(plugins) ? plugins : []).map(function (p) {
+        return typeof p === 'string' ? p : p && p.url;
+      }).join(' ');
+      BUNDLE.forEach(function (url) {
+        if (installed.indexOf(url) !== -1 || document.querySelector('script[src="' + url + '"]')) return;
+        var script = document.createElement('script');
+        script.src = url;
+        script.async = true;
+        script.onerror = function () {
+          console.log('kp_ru: не загрузился', url);
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    loadBundle();
+
 })();
