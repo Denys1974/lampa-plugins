@@ -4,9 +4,11 @@ const urls=[];
 function any(){return new Proxy(function(){},{get:(t,k)=>k==='then'?undefined:any(),apply:()=>any(),construct:()=>any()})}
 const film=(id,c)=>({kinopoiskId:id,nameRu:'Ф'+id,year:2026,type:'FILM',countries:[{country:c}],genres:[]});
 const Lampa=new Proxy({
-  Reguest:function(){return{timeout(){},clear(){},silent(u,ok){urls.push(u.replace(/^.*tech\//,''));setTimeout(()=>{
+  Reguest:function(){return{timeout(){},clear(){},silent(u,ok){urls.push(u.replace(/^.*tech\//,'').replace(/^.*\/3\//,'tmdb:'));setTimeout(()=>{
+    if(u.includes('themoviedb'))return ok({total_pages:3,results:[{id:1,name:'T1',poster_path:'/a.jpg'},{id:2,name:'T2',poster_path:null},{id:3,title:'T3',poster_path:'/c.jpg'}]});
     if(u.includes('filters'))return ok({genres:[{id:1,genre:'драма'}],countries:[{id:34,country:'Россия'},{id:1,country:'США'},{id:5,country:'Великобритания'},{id:13,country:'Корея Южная'},{id:8,country:'Франция'}]});
     const m=u.match(/countries=(\d+)/);const base=m?+m[1]*100:900;ok({total:3,totalPages:2,items:[film(base+1,'x'),film(base+2,'x'),film(base+3,'x')]});},1)}}},
+  TMDB:{api:u=>'https://api.themoviedb.org/3/'+u,key:()=>'K'},
   Storage:{get:(k,d)=>k==='plugins'?[{url:'https://nb557.github.io/plugins/online_mod.js',status:1}]:d,set(){},field:()=>'KP',cache:(k,l,d)=>d},
   Utils:{addUrlComponent:(u,p)=>u+(u.includes('?')?'&':'?')+p,hash:s=>s},
   Api:{sources:{},partNext:(parts,limit,ok,empty)=>{let i=0;(function next(){if(i>=parts.length)return;parts[i++](r=>{ok(r);next()})})()}},
@@ -22,4 +24,4 @@ const titles=[];
 KP.main({},r=>titles.push(r.title+' ['+r.results.length+'] '+(r.url||'')),e=>console.log('ERR',e));
 setTimeout(()=>{console.log(titles.join('\n'));console.log('подгружены:',loaded.join(' '));
   KP.list({url:'kpru_foreign:FILM:1,5,13,8',page:2},r=>{console.log('ещё зарубежные:',r.results.map(e=>e.id).join(','),'page',r.page,'more',r.more);
-  console.log('запросы:',urls.filter(u=>!u.includes('filters')).length)},()=>console.log('list ERR'));},300);
+  console.log('tmdb:',urls.filter(u=>u.startsWith('tmdb:')).join('\n'));console.log('запросы:',urls.filter(u=>!u.includes('filters')).length)},()=>console.log('list ERR'));},300);

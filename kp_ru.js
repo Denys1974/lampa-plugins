@@ -487,15 +487,23 @@
           });
         });
 
+        // Свежее по дате выхода (TMDB): у новинок ещё мало голосов на Кинопоиске, по популярности они внизу
+        var tv_skip = '&without_genres=10763,10764,10767'; // без новостей, реалити и ток-шоу
+        var abroad = 'US%7CGB%7CKR%7CFR'; // США, Великобритания, Корея, Франция (%7C — «или»)
+        parts_data.push(part('🆕 Русские сериалы — новые серии', 'kpru_tmdb:discover/tv?with_origin_country=RU&air_date.gte={d14}&air_date.lte={today}&sort_by=popularity.desc' + tv_skip));
+        parts_data.push(part('🆕 Русские фильмы — недавно вышли', 'kpru_tmdb:discover/movie?with_origin_country=RU&release_date.gte={d90}&release_date.lte={today}&sort_by=popularity.desc'));
+        parts_data.push(part('🆕 Зарубежные сериалы — новые серии', 'kpru_tmdb:discover/tv?with_origin_country=' + abroad + '&air_date.gte={d14}&air_date.lte={today}&sort_by=popularity.desc' + tv_skip));
+        parts_data.push(part('🆕 Зарубежные фильмы — недавно вышли', 'kpru_tmdb:discover/movie?with_origin_country=' + abroad + '&release_date.gte={d60}&release_date.lte={today}&sort_by=popularity.desc'));
+
         if (rus) {
-          parts_data.push(part('🇷🇺 Новые российские фильмы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=FILM' + fresh));
-          parts_data.push(part('🇷🇺 Новые российские сериалы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=TV_SERIES' + fresh));
-          parts_data.push(part('🇷🇺 Новые российские мини-сериалы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=MINI_SERIES' + fresh));
+          parts_data.push(part('🇷🇺 Популярные российские фильмы за год', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=FILM' + fresh));
+          parts_data.push(part('🇷🇺 Популярные российские сериалы за год', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=TV_SERIES' + fresh));
+          parts_data.push(part('🇷🇺 Популярные российские мини-сериалы за год', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=MINI_SERIES' + fresh));
         }
 
         if (foreign) {
-          parts_data.push(part('🌍 Новые зарубежные фильмы', 'kpru_foreign:FILM:' + foreign));
-          parts_data.push(part('🌍 Новые зарубежные сериалы', 'kpru_foreign:TV_SERIES:' + foreign));
+          parts_data.push(part('🌍 Популярные зарубежные фильмы за год', 'kpru_foreign:FILM:' + foreign));
+          parts_data.push(part('🌍 Популярные зарубежные сериалы за год', 'kpru_foreign:TV_SERIES:' + foreign));
         }
 
         parts_data.push(part('🎬 Премьеры этого месяца', 'api/v2.2/films/premieres?year=' + now.getFullYear() + '&month=' + months[now.getMonth()]));
@@ -655,12 +663,47 @@
         method = params.filter_url;
       }
 
+      if (typeof method === 'string' && startsWith(method, 'kpru_tmdb:')) {
+        tmdbList(method, params, oncomplite, onerror);
+        return;
+      }
+
       if (typeof method === 'string' && startsWith(method, 'kpru_foreign:')) {
         foreignList(method, params, oncomplite, onerror);
         return;
       }
 
       getList(method, params, oncomplite, onerror);
+    }
+
+    // Подборка TMDB по дате выхода (kpru_tmdb:путь с {today} {d14} {d60} {d90}) — без кеша, чтобы лента была свежей
+    function tmdbList(method, params, oncomplite, onerror) {
+      var page = params.page || 1;
+      var day = 24 * 60 * 60 * 1000;
+      var date = function (ago) {
+        return new Date(Date.now() - ago * day).toISOString().slice(0, 10);
+      };
+      var path = method.slice('kpru_tmdb:'.length).replace('{today}', date(0)).replace('{d14}', date(14)).replace('{d60}', date(60)).replace('{d90}', date(90));
+      var url = Lampa.TMDB.api(path + '&api_key=' + Lampa.TMDB.key() + '&language=' + (Lampa.Storage.field('tmdb_lang') || 'ru') + '&page=' + page);
+      var net = new Lampa.Reguest();
+      net.timeout(15000);
+      net.silent(url, function (json) {
+        var results = (json && json.results || []).filter(function (e) {
+          return e.poster_path;
+        });
+        results.forEach(function (e) {
+          e.source = 'tmdb';
+        });
+        var pages = Math.min(json && json.total_pages || 1, 20);
+        oncomplite({
+          results: results,
+          url: method,
+          page: page,
+          total_pages: pages,
+          total_results: 0,
+          more: pages > page
+        });
+      }, onerror);
     }
 
     // Новинки нескольких стран (kpru_foreign:ТИП:id,id) — по популярности, страны вперемешку
