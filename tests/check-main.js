@@ -5,6 +5,7 @@ function any(){return new Proxy(function(){},{get:(t,k)=>k==='then'?undefined:an
 const film=(id,c)=>({kinopoiskId:id,nameRu:'Ф'+id,year:2026,type:'FILM',countries:[{country:c}],genres:[]});
 const Lampa=new Proxy({
   Reguest:function(){return{timeout(){},clear(){},silent(u,ok){urls.push(u.replace(/^.*tech\//,'').replace(/^.*\/3\//,'tmdb:'));setTimeout(()=>{
+    if(u.includes('ivi.ru'))return ok({result:[{id:659082,object_type:'video',title:'Беглецы (2021)',international_title:'Runaways',kp_id:10424618,release_date:'2026-09-04',posters:[{type:'poster-vertical',url:'https://p/1.jpg'}],description:'<p>Бизнесмен</p>'},{id:5,object_type:'compilation',title:'Мама (2026)',kp_id:901,ivi_release_date:'2026-11-01'},{id:6,object_type:'video',title:'Гнездо (на узбекском языке)',kp_id:7},{id:7,object_type:'person',title:'Актёр'}]});
     if(u.includes('themoviedb'))return ok({total_pages:3,results:[{id:1,name:'T1',poster_path:'/a.jpg'},{id:2,name:'T2',poster_path:null},{id:3,title:'T3',poster_path:'/c.jpg'}]});
     if(u.includes('filters'))return ok({genres:[{id:1,genre:'драма'}],countries:[{id:34,country:'Россия'},{id:1,country:'США'},{id:5,country:'Великобритания'},{id:13,country:'Корея Южная'},{id:8,country:'Франция'}]});
     const m=u.match(/countries=(\d+)/);const base=m?+m[1]*100:900;ok({total:3,totalPages:2,items:[film(base+1,'x'),film(base+2,'x'),film(base+3,'x')]});},1)}}},
@@ -28,4 +29,5 @@ setTimeout(()=>{console.log(titles.join('\n'));console.log('подгружены
   KP.list({url:'kpru_foreign:FILM:1,5,13,8',page:2},r=>{console.log('ещё зарубежные:',r.results.map(e=>e.id).join(','),'page',r.page,'more',r.more);
   console.log('tmdb:',urls.filter(u=>u.startsWith('tmdb:')).join('\n'));const yrows=[];KP.category({url:'kpru_year:2026'},r=>yrows.push(r.title+' ['+r.results.length+'] '+r.url),()=>{});setTimeout(()=>console.log('по годам 2026:\n'+yrows.join('\n')),200);
   KP.discovery().search({query:encodeURIComponent('Ф')},rows=>console.log('поиск «Везде»:',rows.map(r=>r.type+':'+r.results.map(e=>(e.title||e.name)+'/'+e.source).join(',')).join(' | '),'вкладки:',Lampa.Search.added.join(',')));
+  const vr=[];Lampa.Api.sources.KP.full({card:{source:'KP',id:'KP_10424618',kpru_ivi:true,title:'Беглецы'}},r=>vr.push('карточка ivi: '+(r.movie&&r.movie.title)),()=>vr.push('карточка: ошибка'));setTimeout(()=>console.log(vr.join('')),300);
   console.log('запросы:',urls.filter(u=>!u.includes('filters')).length)},()=>console.log('list ERR'));},300);

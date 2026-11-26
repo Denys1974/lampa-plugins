@@ -639,16 +639,22 @@
         }
       }
 
-      if (kinopoisk_id) {
-        getById(kinopoisk_id, params, function (json) {
-          var status = new Lampa.Status(4);
-          status.onComplite = oncomplite;
-          status.append('movie', json);
-          status.append('persons', json && json.persons);
-          status.append('collection', json && json.collection);
-          status.append('simular', json && json.simular);
-        }, onerror);
-      } else onerror();
+      var answer = function (json) {
+        var status = new Lampa.Status(4);
+        status.onComplite = oncomplite;
+        status.append('movie', json);
+        status.append('persons', json && json.persons);
+        status.append('collection', json && json.collection);
+        status.append('simular', json && json.simular);
+      };
+      // Карточка из ivi: если в API Кинопоиска фильма ещё нет — показываем то, что дал ivi
+      var fallback = params.card && params.card.kpru_ivi ? function () {
+        answer(params.card);
+      } : onerror;
+
+      if (kinopoisk_id && !startsWith(kinopoisk_id + '', 'ivi')) {
+        getById(kinopoisk_id, params, answer, fallback);
+      } else fallback();
     }
 
     function list() {
@@ -885,14 +891,71 @@
       $('.menu .menu__list').eq(0).append(item);
     }
 
-    // Поиск «Везде»: параллельно Кинопоиск, TMDB и IMDb (если плагин загружен), общий список без повторов
+    // ivi: российская база, новинки там появляются раньше, чем в API Кинопоиска; у записей есть номер Кинопоиска (kp_id)
+    var ivi_net = new Lampa.Reguest();
+
+    function iviCard(it) {
+      var kp = it.kp_id || '';
+      var type = it.object_type === 'compilation' ? 'tv' : 'movie';
+      var title = ((it.title || '') + '').replace(/\s*\(\d{4}\)$/, '');
+      var poster = (it.posters || []).filter(function (p) {
+        return p.type === 'poster-vertical';
+      })[0] || (it.posters || [])[0] || (it.thumbs || [])[0] || {};
+      var date = (it.release_date || it.ivi_release_date || (it.year ? it.year + '' : '')) + '';
+      var card = {
+        source: SOURCE_NAME,
+        type: type,
+        adult: false,
+        id: SOURCE_NAME + '_' + (kp || 'ivi' + it.id),
+        kinopoisk_id: kp,
+        kpru_ivi: true,
+        title: title,
+        original_title: it.orig_title || it.international_title || title,
+        overview: ((it.description || it.synopsis || '') + '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+        img: poster.url || '',
+        background_image: ((it.thumbs || [])[0] || {}).url || poster.url || '',
+        genres: [],
+        production_companies: [],
+        production_countries: [],
+        vote_average: +it.ivi_rating_10 || 0,
+        vote_count: it.ivi_rating_10_count || 0
+      };
+      if (type === 'tv') {
+        card.name = card.title;
+        card.original_name = card.original_title;
+        card.first_air_date = date;
+      } else card.release_date = date;
+      return card;
+    }
+
+    function searchIvi(params, oncomplite) {
+      var url = 'https://api.ivi.ru/mobileapi/search/v7/?query=' + (params.query || '') + '&from=0&to=39&app_version=870';
+      ivi_net.timeout(10000);
+      ivi_net.silent(url, function (json) {
+        var groups = { movie: [], tv: [] };
+        (json && json.result || []).forEach(function (it) {
+          if (it.object_type !== 'video' && it.object_type !== 'compilation') return;
+          if (/на узбекском|на таджикском|на казахском/i.test(it.title || '')) return;
+          var card = iviCard(it);
+          groups[card.type].push(card);
+        });
+        var rows = [];
+        if (groups.movie.length) rows.push({ title: Lampa.Lang.translate('menu_movies'), type: 'movie', results: groups.movie });
+        if (groups.tv.length) rows.push({ title: Lampa.Lang.translate('menu_tv'), type: 'tv', results: groups.tv });
+        oncomplite(rows);
+      }, function () {
+        oncomplite([]);
+      });
+    }
+
+    // Поиск «Везде»: параллельно Кинопоиск, ivi, TMDB и IMDb (если плагин загружен), общий список без повторов
     function discoveryAll() {
       var kp = discovery();
       var running = [];
       return {
         title: 'Везде',
         search: function (params, oncomplite) {
-          running = [{ search: search$1 }];
+          running = [{ search: search$1 }, { search: searchIvi, onCancel: ivi_net.clear.bind(ivi_net) }];
           ['tmdb', 'IMDB'].forEach(function (name) {
             var src = Lampa.Api.sources[name];
             if (src && src.discovery) running.push(src.discovery());
@@ -929,10 +992,18 @@
         }
       });
 
-      function key(e) {
-        var name = (e.original_title || e.original_name || e.title || e.name || '') + '';
+      // Ключи повтора: номер Кинопоиска, русское и оригинальное название с годом
+      function keys(e) {
         var year = ((e.release_date || e.first_air_date || '') + '').slice(0, 4);
-        return name.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]/g, '') + '|' + year;
+        var norm = function (t) {
+          return ((t || '') + '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]/g, '');
+        };
+        var list = [];
+        if (e.kinopoisk_id) list.push('kp' + e.kinopoisk_id);
+        [e.title || e.name, e.original_title || e.original_name].forEach(function (t) {
+          if (norm(t)) list.push(norm(t) + '|' + year);
+        });
+        return list;
       }
 
       function finish() {
@@ -946,9 +1017,13 @@
             if (row.type === 'person') return;
             (row.results || []).forEach(function (e) {
               var type = row.type === 'tv' || row.type === 'movie' ? row.type : e.type === 'tv' || (e.name && !e.title) ? 'tv' : 'movie';
-              var k = key(e);
-              if (seen[k]) return;
-              seen[k] = true;
+              var k = keys(e);
+              if (k.some(function (x) {
+                return seen[x];
+              })) return;
+              k.forEach(function (x) {
+                seen[x] = true;
+              });
               groups[type].push(e);
             });
           });
@@ -1490,6 +1565,7 @@
           var kp_only = discovery();
           kp_only.title = 'Кинопоиск';
           Lampa.Search.addSource(kp_only);
+          Lampa.Search.addSource({ title: 'ivi', search: searchIvi, params: kp_only.params, onCancel: ivi_net.clear.bind(ivi_net) });
         }
 
         if (Lampa.Router) {
