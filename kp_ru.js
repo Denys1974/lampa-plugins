@@ -1681,7 +1681,12 @@
         var body = json && json.body || {};
         if (typeof body === 'string') body = Lampa.Arrays.decodeJson(body, {});
         if (!body.success) {
-          Lampa.Noty.show('HDrezka: ' + (body.message || 'вход не удался'));
+          var msg = body.message;
+          // HDrezka присылает ошибку то строкой, то объектом {поле: текст}
+          if (msg && typeof msg === 'object') msg = Object.keys(msg).map(function (k) {
+            return msg[k];
+          }).join('; ');
+          Lampa.Noty.show('HDrezka: ' + (msg || 'вход не удался'));
           return;
         }
         var values = {};
