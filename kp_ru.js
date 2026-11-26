@@ -818,6 +818,81 @@
       };
     }
 
+    // Поиск «Везде»: параллельно Кинопоиск, TMDB и IMDb (если плагин загружен), общий список без повторов
+    function discoveryAll() {
+      var kp = discovery();
+      var running = [];
+      return {
+        title: 'Везде',
+        search: function (params, oncomplite) {
+          running = [{ search: search$1 }];
+          ['tmdb', 'IMDB'].forEach(function (name) {
+            var src = Lampa.Api.sources[name];
+            if (src && src.discovery) running.push(src.discovery());
+          });
+          searchAll(running, params, oncomplite);
+        },
+        params: kp.params,
+        onMore: kp.onMore,
+        onCancel: function () {
+          running.forEach(function (d) {
+            if (d.onCancel) d.onCancel();
+          });
+          network.clear();
+        }
+      };
+    }
+
+    function searchAll(bases, params, oncomplite) {
+      var answers = [];
+      var left = bases.length;
+      var finished = false;
+      // Медленная база не держит выдачу дольше 10 с
+      var timer = setTimeout(finish, 10000);
+
+      bases.forEach(function (base, i) {
+        try {
+          base.search(params, function (rows) {
+            answers[i] = rows || [];
+            if (--left === 0) finish();
+          });
+        } catch (e) {
+          console.log('kp_ru: поиск', e);
+          if (--left === 0) finish();
+        }
+      });
+
+      function key(e) {
+        var name = (e.original_title || e.original_name || e.title || e.name || '') + '';
+        var year = ((e.release_date || e.first_air_date || '') + '').slice(0, 4);
+        return name.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9]/g, '') + '|' + year;
+      }
+
+      function finish() {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        var seen = {};
+        var groups = { movie: [], tv: [] };
+        answers.forEach(function (rows) {
+          (rows || []).forEach(function (row) {
+            if (row.type === 'person') return;
+            (row.results || []).forEach(function (e) {
+              var type = row.type === 'tv' || row.type === 'movie' ? row.type : e.type === 'tv' || (e.name && !e.title) ? 'tv' : 'movie';
+              var k = key(e);
+              if (seen[k]) return;
+              seen[k] = true;
+              groups[type].push(e);
+            });
+          });
+        });
+        var out = [];
+        if (groups.movie.length) out.push({ title: Lampa.Lang.translate('menu_movies'), type: 'movie', results: groups.movie, more: true });
+        if (groups.tv.length) out.push({ title: Lampa.Lang.translate('menu_tv'), type: 'tv', results: groups.tv, more: true });
+        oncomplite(out);
+      }
+    }
+
     function person() {
       var params = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
       var oncomplite = arguments.length > 1 ? arguments[1] : undefined;
@@ -997,7 +1072,7 @@
       person: person,
       seasons: seasons,
       menuCategory: menuCategory,
-      discovery: discovery
+      discovery: discoveryAll
     };
 
     var data = {};
@@ -1342,6 +1417,12 @@
         }
 
         Lampa.Params.select('source', sources, 'tmdb');
+        // Отдельная вкладка «Кинопоиск» в поиске (вкладка KP стала «Везде»)
+        if (Lampa.Search && Lampa.Search.addSource) {
+          var kp_only = discovery();
+          kp_only.title = 'Кинопоиск';
+          Lampa.Search.addSource(kp_only);
+        }
 
         if (Lampa.Router) {
           Lampa.Listener.follow('menu', function (e) {
@@ -1384,7 +1465,8 @@
       'https://plugin.rootu.top/trailers.js', // трейлеры iTunes
       'https://levende.github.io/lampa-plugins/tv-status-color.js', // цветной статус сериала
       'https://and7ey.github.io/lampa/noshots.js', // без «Shots»
-      'https://nb557.github.io/plugins/etor.js' // торренты на ТВ Samsung/LG (TorrServer)
+      'https://nb557.github.io/plugins/etor.js', // торренты на ТВ Samsung/LG (TorrServer)
+      'https://nb557.github.io/plugins/alt_search.js' // поиск по IMDb
     ];
 
     function loadBundle() {

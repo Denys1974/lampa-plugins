@@ -10,12 +10,17 @@
 
 Проверка: `node tests/check-main.js kp_ru.js` (заглушка Lampa, без сети).
 
+## Поиск
+Вкладка «Везде» (первая) — параллельно Кинопоиск, TMDB и IMDb (alt_search.js), общий список без повторов
+(по названию + году), медленная база ждёт не больше 10 с. Отдельные вкладки баз остаются, Кинопоиск — «Кинопоиск».
+
 ## Сборка (подгружается вместе с каталогом, с сайтов авторов)
 - Онлайн Мод — https://nb557.github.io/plugins/online_mod.js — источники видео (Rezka и др.)
 - Rating — https://nb557.github.io/plugins/rating.js — рейтинги Кинопоиска и IMDb
 - Trailers — https://plugin.rootu.top/trailers.js — трейлеры iTunes
 - TV status color — https://levende.github.io/lampa-plugins/tv-status-color.js — цветной статус сериала
 - No Shots — https://and7ey.github.io/lampa/noshots.js — убирает «Shots»
+- Alt Search — https://nb557.github.io/plugins/alt_search.js — поиск по IMDb
 - Etor — https://nb557.github.io/plugins/etor.js — включает торренты на ТВ (нужен TorrServer: дополнение HA aatrubilin/hassio-torrserver, порт 8090)
 
 Отбор (2026-11-20, каталог lampaguide.com): только https (Лампа по https не грузит http), только читаемый код
