@@ -1653,8 +1653,12 @@
       return url.charAt(url.length - 1) === '/' ? url : url + '/';
     }
 
+    // Зеркала, которые из дома не открываются (провайдер не находит адрес) — меняем на рабочее
+    var REZKA_DEAD = /^(https?:\/\/)?(www\.)?(rezka\.ag|hdrezka\.ag|hdrezka\.me|hdrezka\.co|hdrezka\.tv)\/?$/i;
+
     function rezkaHomeOn() {
       if (!homeProxy()) return;
+      if (REZKA_DEAD.test(Lampa.Storage.get('online_mod_rezka2_mirror', '') + '')) Lampa.Storage.set('online_mod_rezka2_mirror', 'kvk.zone');
       Lampa.Storage.set('online_mod_proxy_rezka2', 'true');
       Lampa.Storage.set('online_mod_proxy_rezka2_mirror', 'true');
     }
@@ -1667,6 +1671,7 @@
     }
 
     function rezkaHomeLogin() {
+      rezkaHomeOn();
       var prox = homeProxy();
       if (!prox) {
         Lampa.Noty.show('Сначала включите «Свой прокси» в Онлайн Моде и укажите адрес домашнего сервера');
