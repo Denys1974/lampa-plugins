@@ -1644,4 +1644,89 @@
 
     loadBundle();
 
+    // HDrezka через домашний сервер (посредник в Home Assistant).
+    // На ТВ Онлайн Мод при запуске сам выключает прокси для HDrezka и прячет кнопку куки,
+    // поэтому включаем прокси сами и даём свою кнопку входа через наш посредник.
+    function homeProxy() {
+      var url = Lampa.Storage.get('online_mod_proxy_other_url', '') + '';
+      if (Lampa.Storage.field('online_mod_proxy_other') !== true || url.indexOf('/api/lampa_proxy/') === -1) return '';
+      return url.charAt(url.length - 1) === '/' ? url : url + '/';
+    }
+
+    function rezkaHomeOn() {
+      if (!homeProxy()) return;
+      Lampa.Storage.set('online_mod_proxy_rezka2', 'true');
+      Lampa.Storage.set('online_mod_proxy_rezka2_mirror', 'true');
+    }
+
+    function rezkaMirror() {
+      var url = Lampa.Storage.get('online_mod_rezka2_mirror', '') + '';
+      if (!url) return 'https://kvk.zone';
+      if (url.indexOf('://') === -1) url = 'https://' + url;
+      return url.replace(/\/+$/, '');
+    }
+
+    function rezkaHomeLogin() {
+      var prox = homeProxy();
+      if (!prox) {
+        Lampa.Noty.show('Сначала включите «Свой прокси» в Онлайн Моде и укажите адрес домашнего сервера');
+        return;
+      }
+      var url = prox + 'param/User-Agent=' + encodeURIComponent(navigator.userAgent) + '/cookie_plus/param/Cookie=/' + rezkaMirror() + '/ajax/login/';
+      var post = 'login_name=' + encodeURIComponent(Lampa.Storage.get('online_mod_rezka2_name', '') + '') +
+        '&login_password=' + encodeURIComponent(Lampa.Storage.get('online_mod_rezka2_password', '') + '') + '&login_not_save=0';
+      var net = new Lampa.Reguest();
+      net.timeout(15000);
+      net["native"](url, function (json) {
+        var body = json && json.body || {};
+        if (typeof body === 'string') body = Lampa.Arrays.decodeJson(body, {});
+        if (!body.success) {
+          Lampa.Noty.show('HDrezka: ' + (body.message || 'вход не удался'));
+          return;
+        }
+        var values = {};
+        (json.headers && json.headers['set-cookie'] || []).forEach(function (c) {
+          var p = c.split(';')[0].split('=');
+          if (!p[0]) return;
+          if (p[1] === 'deleted') delete values[p[0]];else values[p[0]] = p[1] || '';
+        });
+        var cookies = [];
+        for (var n in values) cookies.push(n + '=' + values[n]);
+        Lampa.Storage.set('online_mod_rezka2_cookie', cookies.join('; '));
+        Lampa.Storage.set('online_mod_rezka2_status', 'true');
+        rezkaHomeOn();
+        Lampa.Noty.show('HDrezka: вход через домашний сервер выполнен');
+      }, function (a, c) {
+        Lampa.Noty.show('HDrezka: домашний сервер недоступен (' + net.errorDecode(a, c) + ')');
+      }, post);
+    }
+
+    function addRezkaHome(tries) {
+      if (!window.Lampa || !Lampa.SettingsApi || !Lampa.SettingsApi.getComponent('online_mod_rezka2')) {
+        if (tries > 0) setTimeout(function () {
+          addRezkaHome(tries - 1);
+        }, 1000);
+        return;
+      }
+      rezkaHomeOn();
+      Lampa.SettingsApi.addParam({
+        component: 'online_mod_rezka2',
+        param: {
+          name: 'kpru_rezka_home_login',
+          type: 'button'
+        },
+        field: {
+          name: '🏠 Войти через домашний сервер',
+          description: 'Вход в HDrezka через наш посредник (логин и пароль — из полей выше)'
+        },
+        onChange: rezkaHomeLogin
+      });
+      // Онлайн Мод может снова выключить прокси — включаем перед каждым открытием карточки
+      Lampa.Listener.follow('full', function (e) {
+        if (e.type === 'complite') rezkaHomeOn();
+      });
+    }
+
+    addRezkaHome(60);
+
 })();
