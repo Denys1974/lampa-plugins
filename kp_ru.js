@@ -529,6 +529,8 @@
       var parts_limit = 5;
       var parts_data = [];
 
+      if (typeof params.url === 'string' && startsWith(params.url, 'kpru_year:')) return yearCategory(params, oncomplite, onerror);
+
       if (['movie', 'tv'].indexOf(params.url) > -1 && !params.genres) {
         var books = Lampa.Favorite.continues(params.url);
         books.forEach(function (elem) {
@@ -816,6 +818,71 @@
         },
         onCancel: network.clear.bind(network)
       };
+    }
+
+    // Раздел «По годам»: подборки одного года (kpru_year:ГОД) — Кинопоиск и TMDB, по популярности
+    function yearCategory(params, oncomplite, onerror) {
+      var y = params.url.split(':')[1];
+      var parts = [];
+      var part = function (title, url) {
+        parts.push(function (call) {
+          list({ url: url, page: 1 }, function (json) {
+            json.title = title;
+            call(json);
+          }, call);
+        });
+      };
+      var load = function (partLoaded, partEmpty) {
+        Lampa.Api.partNext(parts, 5, partLoaded, partEmpty);
+      };
+      menu({}, function () {
+        var rus = countries_map['Россия'];
+        var yr = '&yearFrom=' + y + '&yearTo=' + y;
+        var abroad = 'US%7CGB%7CKR%7CFR';
+        var tv_skip = '&without_genres=10763,10764,10767';
+        if (rus) {
+          part('🇷🇺 Российские фильмы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=FILM' + yr);
+          part('🇷🇺 Российские сериалы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=TV_SERIES' + yr);
+          part('🇷🇺 Российские мини-сериалы', 'api/v2.2/films?order=NUM_VOTE&countries=' + rus + '&type=MINI_SERIES' + yr);
+        }
+        // TMDB — то, чего ещё нет на Кинопоиске
+        part('🇷🇺 Российские фильмы (TMDB)', 'kpru_tmdb:discover/movie?with_origin_country=RU&primary_release_year=' + y + '&sort_by=popularity.desc');
+        part('🇷🇺 Российские сериалы (TMDB)', 'kpru_tmdb:discover/tv?with_origin_country=RU&first_air_date_year=' + y + '&sort_by=popularity.desc' + tv_skip);
+        part('🌍 Зарубежные фильмы', 'kpru_tmdb:discover/movie?with_origin_country=' + abroad + '&primary_release_year=' + y + '&sort_by=popularity.desc');
+        part('🌍 Зарубежные сериалы', 'kpru_tmdb:discover/tv?with_origin_country=' + abroad + '&first_air_date_year=' + y + '&sort_by=popularity.desc' + tv_skip);
+        part('⭐ Лучшие (рейтинг 7+)', 'api/v2.2/films?order=NUM_VOTE&ratingFrom=7' + yr);
+        part('🎬 Все фильмы', 'api/v2.2/films?order=NUM_VOTE&type=FILM' + yr);
+        part('📺 Все сериалы', 'api/v2.2/films?order=NUM_VOTE&type=TV_SERIES' + yr);
+        load(oncomplite, onerror);
+      });
+      return load;
+    }
+
+    // Пункт меню «По годам»: выбор года → раздел yearCategory
+    function addYearsMenu() {
+      if (!window.$ || $('.menu [data-action="kpru_years"]').length) return;
+      var item = $('<li class="menu__item selector" data-action="kpru_years"><div class="menu__ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><div class="menu__text">По годам</div></li>');
+      item.on('hover:enter', function () {
+        var items = [];
+        for (var y = new Date().getFullYear(); y >= 1980; y--) items.push({ title: '' + y, year: y });
+        Lampa.Select.show({
+          title: 'Год выпуска',
+          items: items,
+          onSelect: function (a) {
+            Lampa.Activity.push({
+              url: 'kpru_year:' + a.year,
+              title: 'Фильмы и сериалы ' + a.year,
+              component: 'category',
+              source: SOURCE_NAME,
+              page: 1
+            });
+          },
+          onBack: function () {
+            Lampa.Controller.toggle('menu');
+          }
+        });
+      });
+      $('.menu .menu__list').eq(0).append(item);
     }
 
     // Поиск «Везде»: параллельно Кинопоиск, TMDB и IMDb (если плагин загружен), общий список без повторов
@@ -1417,6 +1484,7 @@
         }
 
         Lampa.Params.select('source', sources, 'tmdb');
+        addYearsMenu();
         // Отдельная вкладка «Кинопоиск» в поиске (вкладка KP стала «Везде»)
         if (Lampa.Search && Lampa.Search.addSource) {
           var kp_only = discovery();

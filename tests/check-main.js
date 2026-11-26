@@ -26,5 +26,6 @@ const titles=[];
 KP.main({},r=>titles.push(r.title+' ['+r.results.length+'] '+(r.url||'')),e=>console.log('ERR',e));
 setTimeout(()=>{console.log(titles.join('\n'));console.log('подгружены:',loaded.join(' '));
   KP.list({url:'kpru_foreign:FILM:1,5,13,8',page:2},r=>{console.log('ещё зарубежные:',r.results.map(e=>e.id).join(','),'page',r.page,'more',r.more);
-  console.log('tmdb:',urls.filter(u=>u.startsWith('tmdb:')).join('\n'));KP.discovery().search({query:encodeURIComponent('Ф')},rows=>console.log('поиск «Везде»:',rows.map(r=>r.type+':'+r.results.map(e=>(e.title||e.name)+'/'+e.source).join(',')).join(' | '),'вкладки:',Lampa.Search.added.join(',')));
+  console.log('tmdb:',urls.filter(u=>u.startsWith('tmdb:')).join('\n'));const yrows=[];KP.category({url:'kpru_year:2026'},r=>yrows.push(r.title+' ['+r.results.length+'] '+r.url),()=>{});setTimeout(()=>console.log('по годам 2026:\n'+yrows.join('\n')),200);
+  KP.discovery().search({query:encodeURIComponent('Ф')},rows=>console.log('поиск «Везде»:',rows.map(r=>r.type+':'+r.results.map(e=>(e.title||e.name)+'/'+e.source).join(',')).join(' | '),'вкладки:',Lampa.Search.added.join(',')));
   console.log('запросы:',urls.filter(u=>!u.includes('filters')).length)},()=>console.log('list ERR'));},300);
