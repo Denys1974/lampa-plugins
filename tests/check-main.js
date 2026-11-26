@@ -28,6 +28,6 @@ KP.main({},r=>titles.push(r.title+' ['+r.results.length+'] '+(r.url||'')),e=>con
 setTimeout(()=>{console.log(titles.join('\n'));console.log('подгружены:',loaded.join(' '));
   KP.list({url:'kpru_foreign:FILM:1,5,13,8',page:2},r=>{console.log('ещё зарубежные:',r.results.map(e=>e.id).join(','),'page',r.page,'more',r.more);
   console.log('tmdb:',urls.filter(u=>u.startsWith('tmdb:')).join('\n'));const yrows=[];KP.category({url:'kpru_year:2026'},r=>yrows.push(r.title+' ['+r.results.length+'] '+r.url),()=>{});setTimeout(()=>console.log('по годам 2026:\n'+yrows.join('\n')),200);
-  KP.discovery().search({query:encodeURIComponent('Ф')},rows=>console.log('поиск «Везде»:',rows.map(r=>r.type+':'+r.results.map(e=>(e.title||e.name)+'/'+e.source).join(',')).join(' | '),'вкладки:',Lampa.Search.added.join(',')));
+  KP.discovery().search({query:encodeURIComponent('Ф')},rows=>console.log('поиск «Везде»:',rows.map(r=>r.type+':'+r.results.map(e=>(e.title||e.name)+'/'+e.source+'/'+((e.release_date||e.first_air_date||'')+'').slice(0,4)).join(',')).join(' | '),'вкладки:',Lampa.Search.added.join(',')));
   const vr=[];Lampa.Api.sources.KP.full({card:{source:'KP',id:'KP_10424618',kpru_ivi:true,title:'Беглецы'}},r=>vr.push('карточка ivi: '+(r.movie&&r.movie.title)),()=>vr.push('карточка: ошибка'));setTimeout(()=>console.log(vr.join('')),300);
   console.log('запросы:',urls.filter(u=>!u.includes('filters')).length)},()=>console.log('list ERR'));},300);

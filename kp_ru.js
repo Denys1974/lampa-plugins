@@ -640,6 +640,11 @@
       }
 
       var answer = function (json) {
+        // Карточка Кинопоиска для фильма из ivi: год съёмок из ivi, иначе торренты и балансеры не совпадут по году
+        var year = params.card && params.card.kpru_year;
+        if (json && year) {
+          if (json.first_air_date !== undefined || json.name) json.first_air_date = year;else json.release_date = year;
+        }
         var status = new Lampa.Status(4);
         status.onComplite = oncomplite;
         status.append('movie', json);
@@ -901,7 +906,10 @@
       var poster = (it.posters || []).filter(function (p) {
         return p.type === 'poster-vertical';
       })[0] || (it.posters || [])[0] || (it.thumbs || [])[0] || {};
-      var date = (it.release_date || it.ivi_release_date || (it.year ? it.year + '' : '')) + '';
+      // Год в названии ivi («Беглецы (2021)») — год съёмок: по нему подписаны раздачи и ищут балансеры;
+      // дата выхода (2026) с ними не совпадает, и Лампа отбрасывает найденное
+      var made = ((it.title || '') + '').match(/\((\d{4})\)\s*$/);
+      var date = made ? made[1] : (it.release_date || it.ivi_release_date || (it.year ? it.year + '' : '')) + '';
       var card = {
         source: SOURCE_NAME,
         type: type,
@@ -909,6 +917,7 @@
         id: SOURCE_NAME + '_' + (kp || 'ivi' + it.id),
         kinopoisk_id: kp,
         kpru_ivi: true,
+        kpru_year: made ? made[1] : '',
         title: title,
         original_title: it.orig_title || it.international_title || title,
         overview: ((it.description || it.synopsis || '') + '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
